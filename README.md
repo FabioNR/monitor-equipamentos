@@ -156,7 +156,7 @@ monitor-equipamentos/
 ### 1️⃣ Clone o repositório
 
 ```bash
-git clone https://github.com/SEU_USUARIO/monitor-equipamentos.git
+git clone https://github.com/FabioNR/monitor-equipamentos.git
 cd monitor-equipamentos
 npm install
 ```
