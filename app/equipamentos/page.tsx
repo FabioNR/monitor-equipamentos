@@ -38,7 +38,7 @@ export default function EquipamentosPage() {
     setModalAberto(true);
   }
 
-  async function salvar(dados: { nome: string; localizacao: string; status: Status }) {
+  async function salvar(dados: { nome: string; localizacao: string; status: Status; mqtt_id: string | null }) {
     const supabase = createClient();
     setSalvando(true);
     setErroForm(null);

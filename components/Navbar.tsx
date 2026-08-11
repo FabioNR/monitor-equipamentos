@@ -41,6 +41,7 @@ export default function Navbar() {
   const links = [
     { href: '/', label: 'Dashboard' },
     { href: '/equipamentos', label: 'Equipamentos' },
+    { href: '/chamados', label: 'Chamados' },
     { href: '/historico', label: 'Histórico' },
     { href: '/relatorio', label: 'Relatório' },
     ...(!carregando && isAdmin ? [{ href: '/usuarios', label: 'Usuários' }] : []),
@@ -58,11 +59,10 @@ export default function Navbar() {
             <Link
               key={l.href}
               href={l.href}
-              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${
-                pathname === l.href
+              className={`rounded-lg px-3 py-2 text-sm font-medium transition ${pathname === l.href
                   ? 'bg-slate-800 text-white'
                   : 'text-slate-400 hover:text-white'
-              }`}
+                }`}
             >
               {l.label}
             </Link>
@@ -77,9 +77,8 @@ export default function Navbar() {
                   {user.email}
                 </p>
                 <span
-                  className={`text-[11px] font-bold uppercase tracking-wide ${
-                    isAdmin ? 'text-emerald-400' : 'text-slate-500'
-                  }`}
+                  className={`text-[11px] font-bold uppercase tracking-wide ${isAdmin ? 'text-emerald-400' : 'text-slate-500'
+                    }`}
                 >
                   {isAdmin ? 'Admin' : 'Operador'}
                 </span>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Equipamento, Status } from '@/types/equipamento';
 
@@ -19,19 +19,21 @@ export function useEquipamentos() {
   const [carregando, setCarregando] = useState(true);
   const [conectado, setConectado] = useState(false);
 
+  // 🔑 Refetch reutilizável
+  const recarregar = useCallback(async () => {
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('equipamentos')
+      .select('*')
+      .order('nome');
+    if (!error) setEquipamentos(data ?? []);
+  }, []);
+
   useEffect(() => {
     let ativo = true;
     const supabase = createClient();
 
-    (async () => {
-      const { data, error } = await supabase
-        .from('equipamentos')
-        .select('*')
-        .order('nome');
-      if (!ativo) return;
-      if (!error) setEquipamentos(data ?? []);
-      setCarregando(false);
-    })();
+    recarregar().then(() => ativo && setCarregando(false));
 
     const channel = supabase
       .channel(`equipamentos-${Math.random().toString(36).slice(2)}`)
@@ -53,7 +55,6 @@ export function useEquipamentos() {
               const atualizado = payload.new as Equipamento;
               const anterior = payload.old as { status?: Status } | null;
 
-              // Notifica SOMENTE se o status realmente mudou
               if (anterior?.status && anterior.status !== atualizado.status) {
                 window.dispatchEvent(
                   new CustomEvent('equipamento-mudou-status', {
@@ -83,11 +84,20 @@ export function useEquipamentos() {
         if (status === 'SUBSCRIBED') setConectado(true);
       });
 
+    // 🔑 Refetch quando a janela retoma o foco (garante sincronização)
+    const aoFocar = () => recarregar();
+    window.addEventListener('focus', aoFocar);
+
+    // 🔑 Backup: refetch leve a cada 30s caso o realtime esteja fora
+    const intervalo = setInterval(recarregar, 30000);
+
     return () => {
       ativo = false;
+      window.removeEventListener('focus', aoFocar);
+      clearInterval(intervalo);
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [recarregar]);
 
-  return { equipamentos, carregando, conectado };
+  return { equipamentos, setEquipamentos, recarregar, carregando, conectado };
 }

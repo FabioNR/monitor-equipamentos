@@ -5,10 +5,15 @@ import { Equipamento, Status } from '@/types/equipamento';
 import { STATUS_CONFIG, TODOS_STATUS } from '@/lib/status';
 
 interface Props {
-  equipamento: Equipamento | null; // null = novo
+  equipamento: Equipamento | null;
   salvando: boolean;
   erro: string | null;
-  onSalvar: (dados: { nome: string; localizacao: string; status: Status }) => void;
+  onSalvar: (dados: {
+    nome: string;
+    localizacao: string;
+    status: Status;
+    mqtt_id: string | null;   // ← novo
+  }) => void;
   onFechar: () => void;
 }
 
@@ -18,11 +23,17 @@ export default function EquipamentoFormModal({
   const [nome, setNome] = useState(equipamento?.nome ?? '');
   const [localizacao, setLocalizacao] = useState(equipamento?.localizacao ?? '');
   const [status, setStatus] = useState<Status>(equipamento?.status ?? 'offline');
+  const [mqttId, setMqttId] = useState(equipamento?.mqtt_id ?? '');   // ← novo
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!nome.trim() || !localizacao.trim()) return;
-    onSalvar({ nome: nome.trim(), localizacao: localizacao.trim(), status });
+    onSalvar({
+      nome: nome.trim(),
+      localizacao: localizacao.trim(),
+      status,
+      mqtt_id: mqttId.trim() || null,   // ← novo
+    });
   }
 
   const input =
@@ -63,6 +74,22 @@ export default function EquipamentoFormModal({
               required
               className={input}
             />
+          </div>
+
+          {/* ── NOVO CAMPO ── */}
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-300">
+              Identificador MQTT <span className="text-slate-500">(opcional)</span>
+            </label>
+            <input
+              value={mqttId}
+              onChange={(e) => setMqttId(e.target.value)}
+              placeholder="Ex.: servidor-01"
+              className={input}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Código usado pelo dispositivo para publicar o status via MQTT.
+            </p>
           </div>
 
           <div>

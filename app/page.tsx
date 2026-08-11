@@ -12,7 +12,8 @@ import { Equipamento, Status } from '@/types/equipamento';
 type Filtro = Status | 'todos';
 
 export default function DashboardPage() {
-  const { equipamentos, carregando, conectado } = useEquipamentos();
+
+  const { equipamentos, setEquipamentos, carregando, conectado } = useEquipamentos();
   const { isAdmin, carregando: authCarregando } = useAuth();
 
   const [selecionado, setSelecionado] = useState<Equipamento | null>(null);
@@ -27,21 +28,50 @@ export default function DashboardPage() {
     else if (versaoAtual.atualizado_em !== selecionado.atualizado_em) setSelecionado(versaoAtual);
   }, [equipamentos, selecionado]);
 
+  // async function alterarStatus(novoStatus: Status) {
+  //   if (!selecionado || !isAdmin || salvando) return;
+  //   const supabase = createClient();
+  //   setSalvando(true);
+  //   const { error } = await supabase
+  //     .from('equipamentos')
+  //     .update({ status: novoStatus })
+  //     .eq('id', selecionado.id);
+  //   setSalvando(false);
+
+  //   if (error) {
+  //     alert('Erro ao alterar o status: ' + error.message);
+  //     return;
+  //   }
+  //   setSelecionado(null);
+  // }
+
   async function alterarStatus(novoStatus: Status) {
-    if (!selecionado || !isAdmin || salvando) return;
+    if (!selecionado || salvando) return;
     const supabase = createClient();
+
+    const idAlterado = selecionado.id;
+    const statusAnterior = selecionado.status;
+
+    // 🔑 Atualização otimista: muda a UI imediatamente
+    setEquipamentos((prev) =>
+      prev.map((e) => (e.id === idAlterado ? { ...e, status: novoStatus } : e))
+    );
+    setSelecionado(null);
     setSalvando(true);
+
     const { error } = await supabase
       .from('equipamentos')
       .update({ status: novoStatus })
-      .eq('id', selecionado.id);
-    setSalvando(false);
+      .eq('id', idAlterado);
 
+    setSalvando(false);
     if (error) {
       alert('Erro ao alterar o status: ' + error.message);
-      return;
+      // Reverte a atualização otimista
+      setEquipamentos((prev) =>
+        prev.map((e) => (e.id === idAlterado ? { ...e, status: statusAnterior } : e))
+      );
     }
-    setSelecionado(null);
   }
 
   const contagem = {
@@ -70,11 +100,10 @@ export default function DashboardPage() {
           </p>
         </div>
         <span
-          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-            conectado
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
-              : 'border-slate-700 bg-slate-900 text-slate-400'
-          }`}
+          className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${conectado
+            ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+            : 'border-slate-700 bg-slate-900 text-slate-400'
+            }`}
         >
           <span className={`h-2 w-2 rounded-full ${conectado ? 'animate-pulse bg-emerald-400' : 'bg-slate-500'}`} />
           {conectado ? 'Tempo real conectado' : 'Conectando...'}
@@ -158,11 +187,10 @@ function TileResumo({
   return (
     <button
       onClick={onClick}
-      className={`rounded-xl border p-3 text-left transition ${
-        ativo
-          ? 'border-emerald-500/60 bg-slate-900 ring-1 ring-emerald-500/40'
-          : 'border-slate-800 bg-slate-900/60 hover:border-slate-600'
-      }`}
+      className={`rounded-xl border p-3 text-left transition ${ativo
+        ? 'border-emerald-500/60 bg-slate-900 ring-1 ring-emerald-500/40'
+        : 'border-slate-800 bg-slate-900/60 hover:border-slate-600'
+        }`}
     >
       <p className="text-xs text-slate-400">{titulo}</p>
       <p className={`mt-0.5 text-2xl font-bold ${cor}`}>{valor}</p>

@@ -5,6 +5,7 @@ export interface Equipamento {
   nome: string;
   localizacao: string;
   status: Status;
+  mqtt_id: string | null;
   criado_em: string;
   atualizado_em: string;
 }
