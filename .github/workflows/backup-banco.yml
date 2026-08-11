@@ -1,0 +1,57 @@
+name: 🗄️ Backup Semanal do Banco
+
+on:
+  schedule:
+    # Toda segunda-feira às 03:00 UTC
+    - cron: '0 3 * * 1'
+  workflow_dispatch: # permite disparar manualmente
+
+jobs:
+  backup:
+    name: Backup do Supabase
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar PostgreSQL client (v17)
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y curl ca-certificates gnupg
+          install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Gerar backup com pg_dump
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+          FILENAME="backup_supabase_${TIMESTAMP}.dump"
+
+          echo "📦 Gerando backup..."
+          pg_dump "$DATABASE_URL" \
+            --format=custom \
+            --no-owner \
+            --no-privileges \
+            --verbose \
+            --file="$FILENAME"
+
+          echo "🔎 Verificando integridade do backup..."
+          pg_restore --list "$FILENAME" > /dev/null && echo "✅ Backup válido"
+
+          echo "FILENAME=$FILENAME" >> $GITHUB_ENV
+          ls -lh "$FILENAME"
+
+      - name: Salvar backup como artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backup-supabase-${{ env.FILENAME }}
+          path: ${{ env.FILENAME }}
+          retention-days: 90
+          if-no-files-found: error
