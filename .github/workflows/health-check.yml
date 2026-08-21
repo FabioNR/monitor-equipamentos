@@ -13,7 +13,7 @@ jobs:
 
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Instalar PostgreSQL client
         run: |
@@ -27,15 +27,50 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client-17
 
+      - name: Verificar conexão com o banco
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          echo "🔌 Testando conexão..."
+          psql "$DATABASE_URL" -c "SELECT 1;" || {
+            echo "❌ Falha na conexão com o banco"
+            exit 1
+          }
+          echo "✅ Conexão estabelecida"
+
+      - name: Verificar se tabela existe
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          echo "🔍 Verificando tabela health_checks..."
+          psql "$DATABASE_URL" -c "
+            SELECT EXISTS (
+              SELECT FROM information_schema.tables 
+              WHERE table_schema = 'public' 
+              AND table_name = 'health_checks'
+            );
+          " || {
+            echo "❌ Tabela health_checks não encontrada"
+            exit 1
+          }
+
       - name: Registrar health check no banco
         env:
           DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
           TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          WORKFLOW_RUN="${{ github.run_id }}"
+          COMMIT_SHA="${{ github.sha }}"
           
           echo "🏥 Registrando health check..."
+          echo "   Timestamp: $TIMESTAMP"
+          echo "   Workflow: $WORKFLOW_RUN"
+          echo "   Commit: $COMMIT_SHA"
           
+          # Inserção com tratamento de erro
           psql "$DATABASE_URL" <<EOF
+          \echo 'Inserindo registro...'
+          
           insert into public.health_checks (sistema, status, mensagem, verificado_em, metadata)
           values (
             'monitor-equipamentos',
@@ -43,13 +78,17 @@ jobs:
             'Health check automático via GitHub Actions',
             '$TIMESTAMP',
             jsonb_build_object(
-              'workflow_run', '${{ github.run_id }}',
-              'commit_sha', '${{ github.sha }}',
+              'workflow_run', '$WORKFLOW_RUN',
+              'commit_sha', '$COMMIT_SHA',
               'runner', 'github-actions'
             )
           );
           
+          \echo '✅ Registro inserido com sucesso'
+          
           -- Mostra os últimos 5 health checks
+          \echo ''
+          \echo 'Últimos 5 health checks:'
           select 
             sistema, 
             status, 
@@ -60,6 +99,11 @@ jobs:
           order by verificado_em desc
           limit 5;
           EOF
+          
+          if [ $? -ne 0 ]; then
+            echo "❌ Falha ao inserir health check"
+            exit 1
+          fi
           
           echo "✅ Health check registrado com sucesso"
 
