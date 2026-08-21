@@ -1,0 +1,80 @@
+name: 🏥 Health Check do Sistema
+
+on:
+  schedule:
+    # A cada 6 dias às 03:30 UTC
+    - cron: '30 3 */6 * *'
+  workflow_dispatch: # permite disparar manualmente
+
+jobs:
+  health-check:
+    name: Registrar Health Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Instalar PostgreSQL client
+        run: |
+          sudo apt-get update -y
+          sudo apt-get install -y curl ca-certificates gnupg
+          install -d /usr/share/postgresql-common/pgdg
+          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
+            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
+          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -y
+          sudo apt-get install -y postgresql-client-17
+
+      - name: Registrar health check no banco
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          
+          echo "🏥 Registrando health check..."
+          
+          psql "$DATABASE_URL" <<EOF
+          insert into public.health_checks (sistema, status, mensagem, verificado_em, metadata)
+          values (
+            'monitor-equipamentos',
+            'operante',
+            'Health check automático via GitHub Actions',
+            '$TIMESTAMP',
+            jsonb_build_object(
+              'workflow_run', '${{ github.run_id }}',
+              'commit_sha', '${{ github.sha }}',
+              'runner', 'github-actions'
+            )
+          );
+          
+          -- Mostra os últimos 5 health checks
+          select 
+            sistema, 
+            status, 
+            verificado_em,
+            mensagem
+          from public.health_checks
+          where sistema = 'monitor-equipamentos'
+          order by verificado_em desc
+          limit 5;
+          EOF
+          
+          echo "✅ Health check registrado com sucesso"
+
+      - name: Verificar último health check
+        env:
+          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
+        run: |
+          echo "📊 Últimos health checks:"
+          psql "$DATABASE_URL" -c "
+            select 
+              sistema, 
+              status, 
+              to_char(verificado_em, 'DD/MM/YYYY HH24:MI') as verificado,
+              mensagem
+            from public.health_checks
+            order by verificado_em desc
+            limit 10;
+          "
