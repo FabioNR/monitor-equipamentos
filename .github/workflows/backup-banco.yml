@@ -2,49 +2,71 @@ name: 🗄️ Backup Semanal do Banco
 
 on:
   schedule:
-    # Toda segunda-feira às 03:00 UTC
-    - cron: '0 3 * * 1'
-  workflow_dispatch: # permite disparar manualmente
+    - cron: '0 3 * * 1'   # Toda segunda-feira às 03:00 UTC
+  workflow_dispatch:
 
 jobs:
   backup:
     name: Backup do Supabase
     runs-on: ubuntu-latest
 
+    env:
+      PGHOST: ${{ secrets.SUPABASE_HOST }}
+      PGPORT: 6543
+      PGUSER: postgres.jduicftyfhfydjwxhdwk
+      PGPASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+      PGDATABASE: postgres
+
     steps:
       - name: Checkout do código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
-      - name: Instalar PostgreSQL client (v17)
+      - name: Instalar PostgreSQL client
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y curl ca-certificates gnupg
-          install -d /usr/share/postgresql-common/pgdg
-          curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc \
-            | sudo gpg --dearmor -o /usr/share/keyrings/postgresql.gpg
-          echo "deb [signed-by=/usr/share/keyrings/postgresql.gpg] http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
-            | sudo tee /etc/apt/sources.list.d/pgdg.list
-          sudo apt-get update -y
-          sudo apt-get install -y postgresql-client-17
+          sudo apt-get install -y postgresql-client
+
+      - name: Debug - verificar variáveis
+        run: |
+          echo "🔍 Verificando variáveis de ambiente..."
+          echo "Host: $PGHOST"
+          echo "Port: $PGPORT"
+          echo "User: $PGUSER"
+          echo "Database: $PGDATABASE"
+          echo "Password length: ${#PGPASSWORD}"
+          pg_dump --version
+
+      - name: Testar conexão
+        run: |
+          echo "🔌 Testando conexão..."
+          psql -c "SELECT version();" || {
+            echo "❌ Falha na conexão"
+            exit 1
+          }
+          echo "✅ Conexão estabelecida"
 
       - name: Gerar backup com pg_dump
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
           TIMESTAMP=$(date +%Y%m%d_%H%M%S)
           FILENAME="backup_supabase_${TIMESTAMP}.dump"
 
-          echo "📦 Gerando backup..."
-          pg_dump "$DATABASE_URL" \
+          echo "📦 Gerando backup: $FILENAME"
+          pg_dump \
             --format=custom \
             --no-owner \
             --no-privileges \
-            --verbose \
-            --file="$FILENAME"
+            --file="$FILENAME" || {
+            echo "❌ Falha ao gerar backup"
+            exit 1
+          }
 
           echo "🔎 Verificando integridade do backup..."
-          pg_restore --list "$FILENAME" > /dev/null && echo "✅ Backup válido"
+          pg_restore --list "$FILENAME" > /dev/null || {
+            echo "❌ Backup corrompido"
+            exit 1
+          }
 
+          echo "✅ Backup válido"
           echo "FILENAME=$FILENAME" >> $GITHUB_ENV
           ls -lh "$FILENAME"
 
