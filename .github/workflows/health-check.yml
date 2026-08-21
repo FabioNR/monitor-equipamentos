@@ -13,7 +13,7 @@ jobs:
     env:
       PGHOST: ${{ secrets.SUPABASE_HOST }}
       PGPORT: 6543
-      PGUSER: postgres.jduicftyfhfydjwxhdwk
+      PGUSER: postgres
       PGPASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
       PGDATABASE: postgres
 
