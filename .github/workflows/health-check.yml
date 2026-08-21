@@ -2,13 +2,20 @@ name: 🏥 Health Check do Sistema
 
 on:
   schedule:
-    - cron: '30 3 */6 * *'   # A cada 6 dias às 03:30 UTC
+    - cron: '30 3 */6 * *'
   workflow_dispatch:
 
 jobs:
   health-check:
     name: Registrar Health Check
     runs-on: ubuntu-latest
+
+    env:
+      PGHOST: ${{ secrets.SUPABASE_HOST }}
+      PGPORT: 6543
+      PGUSER: postgres.jduicftyfhfydjwxhdwk
+      PGPASSWORD: ${{ secrets.SUPABASE_PASSWORD }}
+      PGDATABASE: postgres
 
     steps:
       - name: Checkout do código
@@ -24,35 +31,46 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y postgresql-client-17
 
+      - name: Debug - verificar variáveis
+        run: |
+          echo "🔍 Verificando variáveis de ambiente..."
+          echo "Host: $PGHOST"
+          echo "Port: $PGPORT"
+          echo "User: $PGUSER"
+          echo "Database: $PGDATABASE"
+          echo "Password length: ${#PGPASSWORD}"
+
       - name: Testar conexão
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
           echo "🔌 Testando conexão..."
-          psql "$DATABASE_URL" -c "SELECT version();" || exit 1
-          echo "✅ Conexão OK"
+          psql -c "SELECT version();" || {
+            echo "❌ Falha na conexão"
+            exit 1
+          }
+          echo "✅ Conexão estabelecida"
 
       - name: Verificar tabela
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
-          echo "🔍 Verificando tabela..."
-          psql "$DATABASE_URL" -c "SELECT count(*) FROM public.health_checks;" || exit 1
+          echo "🔍 Verificando tabela health_checks..."
+          psql -c "SELECT count(*) FROM public.health_checks;" || {
+            echo "❌ Tabela não encontrada"
+            exit 1
+          }
           echo "✅ Tabela existe"
 
       - name: Inserir health check
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
-          psql "$DATABASE_URL" \
-            -v sistema="monitor-equipamentos" \
-            -v status="operante" \
-            -v mensagem="Health check automático via GitHub Actions" \
-            -c "INSERT INTO public.health_checks (sistema, status, mensagem) VALUES (:'sistema', :'status', :'mensagem');"
+          echo "🏥 Inserindo health check..."
+          psql -v sistema="monitor-equipamentos" \
+               -v status="operante" \
+               -v mensagem="Health check automático via GitHub Actions" \
+               -c "INSERT INTO public.health_checks (sistema, status, mensagem) VALUES (:'sistema', :'status', :'mensagem');" || {
+            echo "❌ Falha ao inserir"
+            exit 1
+          }
+          echo "✅ Health check inserido"
 
       - name: Mostrar últimos registros
-        env:
-          DATABASE_URL: ${{ secrets.SUPABASE_DATABASE_URL }}
         run: |
           echo "📊 Últimos health checks:"
-          psql "$DATABASE_URL" -c "SELECT sistema, status, to_char(verificado_em, 'YYYY-MM-DD HH24:MI:SS') AS verificado, mensagem FROM public.health_checks ORDER BY verificado_em DESC LIMIT 5;"
+          psql -c "SELECT sistema, status, to_char(verificado_em, 'YYYY-MM-DD HH24:MI:SS') AS verificado, mensagem FROM public.health_checks ORDER BY verificado_em DESC LIMIT 5;"
