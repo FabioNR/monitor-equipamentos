@@ -57,10 +57,7 @@ jobs:
       - name: Inserir health check
         run: |
           echo "🏥 Inserindo health check..."
-          psql -v sistema="monitor-equipamentos" \
-               -v status="operante" \
-               -v mensagem="Health check automático via GitHub Actions" \
-               -c "INSERT INTO public.health_checks (sistema, status, mensagem) VALUES (:'sistema', :'status', :'mensagem');" || {
+          psql -c "INSERT INTO public.health_checks (sistema, status, mensagem) VALUES ('monitor-equipamentos', 'operante', 'Health check automático via GitHub Actions');" || {
             echo "❌ Falha ao inserir"
             exit 1
           }
