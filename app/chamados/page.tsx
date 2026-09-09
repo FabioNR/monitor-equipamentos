@@ -118,11 +118,10 @@ export default function ChamadosPage() {
         </div>
         <div className="flex items-center gap-3">
           <span
-            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${
-              conectado
+            className={`inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-semibold ${conectado
                 ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
                 : 'border-slate-700 bg-slate-900 text-slate-400'
-            }`}
+              }`}
           >
             <span className={`h-2 w-2 rounded-full ${conectado ? 'animate-pulse bg-emerald-400' : 'bg-slate-500'}`} />
             {conectado ? 'Ao vivo' : 'Conectando...'}
@@ -149,11 +148,10 @@ export default function ChamadosPage() {
             <button
               key={op.valor}
               onClick={() => setFiltroStatus(op.valor)}
-              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${
-                filtroStatus === op.valor
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filtroStatus === op.valor
                   ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300'
                   : 'border-slate-700 bg-slate-900 text-slate-400 hover:text-white'
-              }`}
+                }`}
             >
               {op.label} ({contar(op.valor)})
             </button>

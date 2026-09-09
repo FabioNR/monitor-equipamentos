@@ -49,12 +49,45 @@ export default function ChamadoFormModal({ onSucesso, onFechar }: Props) {
       },
     ]);
 
-    setSalvando(false);
     if (error) {
+      setSalvando(false);
       setErro(error.message);
       return;
     }
-    onSucesso('Chamado aberto com sucesso!');
+
+    // 📧 Chama a API Route que envia o e-mail para o osTicket (roda no servidor)
+    let emailEnviado = false;
+    try {
+      const resp = await fetch('/api/enviar-email-chamado', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          equipamentoNome: eq?.nome ?? '',
+          titulo: titulo.trim(),
+          descricao: descricao.trim() || null,
+          origem: 'manual',
+          abertoPorEmail: user?.email ?? null,
+          abertoEm: new Date().toISOString(),
+        }),
+      });
+
+      const resultado = await resp.json();
+      emailEnviado = resultado.ok === true;
+
+      if (!resultado.ok) {
+        console.warn('[ChamadoFormModal] E-mail não enviado:', resultado.error);
+      }
+    } catch (err) {
+      console.error('[ChamadoFormModal] Falha ao chamar API de e-mail:', err);
+    }
+
+    setSalvando(false);
+
+    const mensagem = emailEnviado
+      ? 'Chamado aberto e e-mail enviado para o osTicket!'
+      : 'Chamado aberto! (E-mail para o osTicket não foi enviado — verifique os logs)';
+
+    onSucesso(mensagem);
   }
 
   const input =
