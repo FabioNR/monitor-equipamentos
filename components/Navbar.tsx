@@ -42,9 +42,12 @@ export default function Navbar() {
     { href: '/', label: 'Dashboard' },
     { href: '/equipamentos', label: 'Equipamentos' },
     { href: '/chamados', label: 'Chamados' },
-    { href: '/historico', label: 'Histórico' },
     { href: '/relatorio', label: 'Relatório' },
-    ...(!carregando && isAdmin ? [{ href: '/usuarios', label: 'Usuários' }] : []),
+    // Links restritos a administradores
+    ...(!carregando && isAdmin ? [
+      { href: '/historico', label: 'Histórico' },
+      { href: '/usuarios', label: 'Usuários' },
+    ] : []),
   ];
 
   return (
